@@ -1,0 +1,4 @@
+.env
+sysmon*
+# Ignore Python cache files
+__pycache__/
