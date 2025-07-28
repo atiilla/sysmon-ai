@@ -1,4 +1,4 @@
-# 🔍 Sysmon AI - Advanced Threat Hunting Platform
+# Sysmon AI - Advanced Threat Hunting Platform
 
 ![Version](https://img.shields.io/badge/version-0.1-blue)
 ![Python](https://img.shields.io/badge/python-3.8+-green)
@@ -77,7 +77,7 @@ python app.py --web --port 8501
 # Open browser to http://localhost:8501
 ```
 
-## 📋 Usage Examples
+## Usage Examples
 
 ### Advanced Threat Hunting
 ```bash
@@ -115,7 +115,7 @@ python app.py --hunt --report-type full --report-format html --groq-key sk-xxx
 3. **Response**: Follow playbooks, implement SIEM rules, share IOCs
 4. **Recovery**: Patch vulnerabilities, update signatures, improve posture
 
-## 📈 Professional Features for Cybersecurity Teams
+## Professional Features for Cybersecurity Teams
 
 - **Multi-Platform Log Collection**: Windows and Linux systems
 - **MITRE ATT&CK Integration**: Automatic tactic and technique mapping
@@ -126,7 +126,7 @@ python app.py --hunt --report-type full --report-format html --groq-key sk-xxx
 - **Interactive Visualizations**: Timeline analysis, network graphs
 - **Hunting Playbooks**: Step-by-step investigation procedures
 
-## 🔗 Integration Support
+## Integration Support
 
 - **Splunk**: Custom queries and dashboards
 - **Elasticsearch**: ECS-compliant searches
