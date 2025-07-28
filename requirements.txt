@@ -8,6 +8,7 @@ python-dotenv
 streamlit
 plotly
 networkx
+python-evtx
 requests
 pymisp
 splunk-sdk
@@ -17,4 +18,20 @@ seaborn
 wordcloud
 watchdog
 schedule
+# Windows-specific packages (install only on Windows)
+pywin32; sys_platform == "win32"
+# Additional packages for enhanced threat hunting
+psutil
+yara-python
+scapy
+paramiko
+fabric
+jsonschema
+pyyaml
+cryptography
+urllib3
+dnspython
+ipwhois
+maxminddb
+geoip2
 twilio 
