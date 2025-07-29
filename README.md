@@ -61,8 +61,10 @@
 
 ### Quick Install
 ```bash
-git clone https://github.com/your-repo/sysmon-ai.git
+git clone https://github.com/atiilla/sysmon-ai.git
 cd sysmon-ai
+python -m venv venv
+source venv/bin/activate  # On Windows use `venv\Scripts\activate`
 pip install -r requirements.txt
 ```
 
