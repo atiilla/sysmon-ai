@@ -36,18 +36,254 @@ class SysmonAnalyzer:
                 'CreateRemoteThread',
                 'VirtualAllocEx',
                 'WriteProcessMemory',
-                'SetWindowsHookEx'
+                'SetWindowsHookEx',
+                'NtCreateThreadEx',
+                'RtlCreateUserThread',
+                'QueueUserAPC',
+                'SuspendThread',
+                'ResumeThread',
+                'Process Hollowing',
+                'DLL Injection',
+                'Reflective DLL'
             ],
             'powershell_obfuscation': [
                 'EncodedCommand',
                 'FromBase64String',
                 'Invoke-Expression',
-                'DownloadString'
+                'DownloadString',
+                'DownloadFile',
+                'WebClient',
+                'Net.WebClient',
+                'IEX',
+                'Invoke-Obfuscation',
+                'powershell -enc',
+                'powershell -e',
+                'hidden',
+                'bypass',
+                'unrestricted',
+                'noprofile',
+                'windowstyle hidden'
             ],
             'privilege_escalation': [
                 'SeDebugPrivilege',
                 'SeTakeOwnershipPrivilege',
-                'SeImpersonatePrivilege'
+                'SeImpersonatePrivilege',
+                'SeAssignPrimaryTokenPrivilege',
+                'SeLoadDriverPrivilege',
+                'SeRestorePrivilege',
+                'SeBackupPrivilege',
+                'SeTcbPrivilege',
+                'UAC Bypass',
+                'Token Manipulation',
+                'Access Token Manipulation',
+                'runas',
+                'psexec'
+            ],
+            'dcsync_attack': [
+                'mimikatz',
+                'lsadump::dcsync',
+                'powerview',
+                'Add-DomainObjectAcl',
+                'Get-DomainObjectAcl',
+                'drsuapi',
+                'DsGetNCChanges',
+                'DS-Replication-Get-Changes',
+                'Replicating Directory Changes',
+                'Directory Replication Service',
+                'DRSR',
+                'GetNCChanges',
+                'DRS_MSG_GETCHGREQ',
+                'DsReplicaGetInfo',
+                'ntdsutil',
+                'vssadmin',
+                'diskshadow',
+                'ntds.dit'
+            ],
+            'credential_dumping': [
+                'lsass.exe',
+                'procdump',
+                'comsvcs.dll',
+                'MiniDump',
+                'sekurlsa',
+                'logonpasswords',
+                'kerberos::list',
+                'crypto::capi',
+                'lsadump::sam',
+                'lsadump::cache',
+                'lsadump::secrets',
+                'hashdump',
+                'pwdump',
+                'fgdump',
+                'gsecdump',
+                'wce.exe',
+                'mimikittenz',
+                'LaZagne',
+                'Windows Credential Manager'
+            ],
+            'acl_manipulation': [
+                'Add-DomainObjectAcl',
+                'Set-DomainObjectOwner',
+                'Add-ObjectAcl',
+                'dacledit',
+                'DACL',
+                'Access Control List',
+                'GenericAll',
+                'WriteDacl',
+                'WriteOwner',
+                'FullControl',
+                'TakeOwnership',
+                'ChangePermissions',
+                'Modify',
+                'icacls',
+                'takeown',
+                'SetACL'
+            ],
+            'log_tampering': [
+                'EventLog',
+                'Clear-EventLog',
+                'wevtutil',
+                'log cleared',
+                'Remove-EventLog',
+                'Limit-EventLog',
+                'auditpol',
+                'Security log cleared',
+                'Event log service',
+                'Windows Event Log'
+            ],
+            'lateral_movement': [
+                'psexec',
+                'wmic',
+                'schtasks',
+                'at.exe',
+                'WinRM',
+                'PowerShell Remoting',
+                'Enter-PSSession',
+                'Invoke-Command',
+                'New-PSSession',
+                'RDP',
+                'Remote Desktop',
+                'net use',
+                'net view',
+                'SMB',
+                'admin$',
+                'c$',
+                'ipc$'
+            ],
+            'persistence': [
+                'schtasks',
+                'at.exe',
+                'sc.exe',
+                'reg add',
+                'HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run',
+                'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run',
+                'Startup folder',
+                'WMI Event',
+                'New-Service',
+                'Set-Service',
+                'winlogon',
+                'userinit',
+                'shell',
+                'AppInit_DLLs',
+                'DLL Search Order Hijacking'
+            ],
+            'defense_evasion': [
+                'Disable-WindowsOptionalFeature',
+                'Set-MpPreference',
+                'Disable Windows Defender',
+                'Uninstall-WindowsFeature',
+                'Stop-Service',
+                'sc stop',
+                'taskkill',
+                'ProcessHacker',
+                'Process Hacker',
+                'Sysinternals',
+                'PsKill',
+                'rootkit',
+                'Anti-VM',
+                'Anti-Debug',
+                'Packing',
+                'UPX'
+            ],
+            'reconnaissance': [
+                'whoami',
+                'ipconfig',
+                'systeminfo',
+                'tasklist',
+                'net user',
+                'net group',
+                'net localgroup',
+                'net share',
+                'quser',
+                'query user',
+                'nltest',
+                'dsquery',
+                'ldapsearch',
+                'Get-ADUser',
+                'Get-ADGroup',
+                'Get-ADComputer',
+                'bloodhound',
+                'SharpHound'
+            ],
+            'data_exfiltration': [
+                'bitsadmin',
+                'certutil',
+                'curl',
+                'wget',
+                'Invoke-WebRequest',
+                'Start-BitsTransfer',
+                'Copy-Item',
+                'robocopy',
+                'xcopy',
+                'WinSCP',
+                'FileZilla',
+                'FTP',
+                'SFTP',
+                'SCP',
+                'rsync'
+            ],
+            'network_scanning': [
+                'nmap',
+                'masscan',
+                'zmap',
+                'ping',
+                'Test-NetConnection',
+                'telnet',
+                'nc.exe',
+                'netcat',
+                'portscan',
+                'port scan',
+                'nslookup',
+                'dig',
+                'Resolve-DnsName'
+            ],
+            'web_exploitation': [
+                'SQL Injection',
+                'XSS',
+                'CSRF',
+                'LFI',
+                'RFI',
+                'Path Traversal',
+                'Directory Traversal',
+                'Command Injection',
+                'Code Injection',
+                'File Upload',
+                'Unrestricted File Upload',
+                'webshell',
+                'Web Shell'
+            ],
+            'malware_execution': [
+                'rundll32',
+                'regsvr32',
+                'mshta',
+                'cscript',
+                'wscript',
+                'powershell',
+                'cmd.exe',
+                'conhost.exe',
+                'suspicious process',
+                'living off the land',
+                'LOLBins',
+                'LOLBAS'
             ]
         }
     
@@ -160,13 +396,227 @@ class SysmonAnalyzer:
         """
         detected_threats = []
         
+        # Check for text-based patterns
         for category, patterns in self.suspicious_patterns.items():
             for pattern in patterns:
                 if pattern.lower() in event_xml.lower():
                     detected_threats.append(category)
                     break
         
+        # Specific Windows Security Event analysis
+        event_id = self._extract_event_id(event_xml)
+        
+        # Event 1102: Security log cleared - highly suspicious
+        if event_id == "1102":
+            detected_threats.append("log_tampering")
+        
+        # Event 4624: Successful logon - check for suspicious patterns
+        elif event_id == "4624":
+            if self._is_suspicious_4624_event(event_xml):
+                detected_threats.append("lateral_movement")
+        
+        # Event 4625: Failed logon - potential brute force
+        elif event_id == "4625":
+            detected_threats.append("reconnaissance")
+        
+        # Event 4648: Logon with explicit credentials
+        elif event_id == "4648":
+            detected_threats.append("lateral_movement")
+        
+        # Event 4662: Directory Service Object Access - check for DCSync indicators
+        elif event_id == "4662":
+            if self._is_dcsync_4662_event(event_xml):
+                detected_threats.append("dcsync_attack")
+        
+        # Event 4672: Special privileges assigned to new logon
+        elif event_id == "4672":
+            if self._is_suspicious_4672_event(event_xml):
+                detected_threats.append("privilege_escalation")
+        
+        # Event 4688: Process creation
+        elif event_id == "4688":
+            if self._is_suspicious_4688_event(event_xml):
+                detected_threats.extend(self._analyze_process_creation(event_xml))
+        
+        # Event 4697: Service installed
+        elif event_id == "4697":
+            detected_threats.append("persistence")
+        
+        # Event 4698/4699: Scheduled task created/deleted
+        elif event_id in ["4698", "4699"]:
+            detected_threats.append("persistence")
+        
+        # Event 4720: User account created
+        elif event_id == "4720":
+            detected_threats.append("persistence")
+        
+        # Event 4732/4728: User added to group
+        elif event_id in ["4732", "4728"]:
+            if self._is_privileged_group_addition(event_xml):
+                detected_threats.append("privilege_escalation")
+        
+        # Event 4769: Kerberos service ticket requested
+        elif event_id == "4769":
+            if self._is_suspicious_kerberos_event(event_xml):
+                detected_threats.append("lateral_movement")
+        
+        # Event 5136: Directory Service Object Modified - check for ACL changes
+        elif event_id == "5136":
+            if self._is_suspicious_5136_event(event_xml):
+                detected_threats.append("acl_manipulation")
+        
+        # Event 5140: Network share accessed
+        elif event_id == "5140":
+            if self._is_suspicious_share_access(event_xml):
+                detected_threats.append("lateral_movement")
+        
+        # Event 5156: Network connection allowed
+        elif event_id == "5156":
+            if self._is_suspicious_network_connection(event_xml):
+                detected_threats.append("data_exfiltration")
+        
         return detected_threats
+    
+    def _is_dcsync_4662_event(self, event_xml: str) -> bool:
+        """Check if Event 4662 indicates DCSync activity"""
+        try:
+            # Look for Directory Service access with replication rights
+            if "ObjectServer\">DS<" in event_xml:
+                # Check for GUID that indicates replication permissions
+                # 19195a5b-6da0-11d0-afd3-00c04fd930c9 is DS-Replication-Get-Changes
+                dcsync_guids = [
+                    "19195a5b-6da0-11d0-afd3-00c04fd930c9",  # DS-Replication-Get-Changes
+                    "1131f6aa-9c07-11d1-f79f-00c04fc2dcd2",  # DS-Replication-Get-Changes-All
+                    "1131f6ad-9c07-11d1-f79f-00c04fc2dcd2",  # DS-Replication-Get-Changes-In-Filtered-Set
+                ]
+                
+                for guid in dcsync_guids:
+                    if guid.lower() in event_xml.lower():
+                        return True
+                
+                # Also check for suspicious access masks that indicate replication
+                # Access mask 0x00000100 or similar for directory replication
+                if "AccessMask\">0x00000100<" in event_xml or "AccessMask\">0x00040000<" in event_xml:
+                    return True
+            
+            return False
+        except:
+            return False
+    
+    def _is_suspicious_5136_event(self, event_xml: str) -> bool:
+        """Check if Event 5136 indicates suspicious ACL manipulation"""
+        try:
+            # Look for DACL or ACL modifications
+            if any(indicator in event_xml.lower() for indicator in [
+                "dacl", "acl", "access control", "permissions",
+                "ds-replication-get-changes", "genericall", "writedacl"
+            ]):
+                return True
+            return False
+        except:
+            return False
+    
+    def _is_suspicious_4624_event(self, event_xml: str) -> bool:
+        """Check if Event 4624 indicates suspicious logon"""
+        try:
+            # Look for suspicious logon types or accounts
+            suspicious_indicators = [
+                "logontype\">3<",  # Network logon
+                "logontype\">10<", # Remote interactive logon
+                "administrator", "admin", "service", "system"
+            ]
+            return any(indicator in event_xml.lower() for indicator in suspicious_indicators)
+        except:
+            return False
+    
+    def _is_suspicious_4672_event(self, event_xml: str) -> bool:
+        """Check if Event 4672 indicates suspicious privilege assignment"""
+        try:
+            # Look for high privilege assignments
+            high_privileges = [
+                "sedebugprivilege", "setakeownershipprivilege", 
+                "seimpersonateprivilege", "seloaddriverprivilege",
+                "serestoreprivilege", "sebackupprivilege"
+            ]
+            return any(priv in event_xml.lower() for priv in high_privileges)
+        except:
+            return False
+    
+    def _is_suspicious_4688_event(self, event_xml: str) -> bool:
+        """Check if Event 4688 indicates suspicious process creation"""
+        try:
+            suspicious_processes = [
+                "powershell", "cmd.exe", "wmic", "psexec", "mimikatz",
+                "procdump", "rundll32", "regsvr32", "mshta", "certutil"
+            ]
+            return any(proc in event_xml.lower() for proc in suspicious_processes)
+        except:
+            return False
+    
+    def _analyze_process_creation(self, event_xml: str) -> List[str]:
+        """Analyze process creation for multiple threat categories"""
+        threats = []
+        xml_lower = event_xml.lower()
+        
+        # Check for different threat patterns
+        if any(pattern in xml_lower for pattern in ["powershell", "cmd.exe", "wmic"]):
+            if any(pattern in xml_lower for pattern in ["encoded", "bypass", "hidden"]):
+                threats.append("powershell_obfuscation")
+            elif any(pattern in xml_lower for pattern in ["net user", "net group", "whoami"]):
+                threats.append("reconnaissance")
+            elif any(pattern in xml_lower for pattern in ["psexec", "wmic", "schtasks"]):
+                threats.append("lateral_movement")
+        
+        if any(pattern in xml_lower for pattern in ["mimikatz", "procdump", "lsass"]):
+            threats.append("credential_dumping")
+        
+        if any(pattern in xml_lower for pattern in ["rundll32", "regsvr32", "mshta"]):
+            threats.append("defense_evasion")
+        
+        return threats
+    
+    def _is_privileged_group_addition(self, event_xml: str) -> bool:
+        """Check if user was added to privileged group"""
+        try:
+            privileged_groups = [
+                "administrators", "domain admins", "enterprise admins",
+                "schema admins", "backup operators", "server operators"
+            ]
+            return any(group in event_xml.lower() for group in privileged_groups)
+        except:
+            return False
+    
+    def _is_suspicious_kerberos_event(self, event_xml: str) -> bool:
+        """Check if Kerberos event indicates suspicious activity"""
+        try:
+            # Look for service ticket requests that might indicate lateral movement
+            suspicious_services = [
+                "cifs/", "host/", "ldap/", "mssqlsvc/", "http/", "rpcss/"
+            ]
+            return any(service in event_xml.lower() for service in suspicious_services)
+        except:
+            return False
+    
+    def _is_suspicious_share_access(self, event_xml: str) -> bool:
+        """Check if network share access is suspicious"""
+        try:
+            suspicious_shares = ["admin$", "c$", "ipc$", "sysvol", "netlogon"]
+            return any(share in event_xml.lower() for share in suspicious_shares)
+        except:
+            return False
+    
+    def _is_suspicious_network_connection(self, event_xml: str) -> bool:
+        """Check if network connection is suspicious"""
+        try:
+            # Look for connections to suspicious ports or protocols
+            suspicious_patterns = [
+                "port\">443<", "port\">80<", "port\">53<",  # Common exfil ports
+                "port\">22<", "port\">21<", "port\">23<",  # Remote access
+                "direction\">outbound"  # Outbound connections
+            ]
+            return any(pattern in event_xml.lower() for pattern in suspicious_patterns)
+        except:
+            return False
     
     def _extract_event_id(self, event_xml: str) -> str:
         """Extract Event ID from XML"""
