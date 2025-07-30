@@ -7,6 +7,8 @@
 
 **Sysmon AI** is a comprehensive, multi-platform threat hunting and log analysis platform designed for cybersecurity professionals. It combines advanced pattern detection, AI-powered analysis, threat intelligence feeds, and automated reporting to provide deep insights into security events across Windows and Linux environments.
 
+(![Sysmon AI](screenshot.png)
+
 ## Overview
 
 Sysmon AI provides both a powerful CLI tool and an interactive web interface for analyzing Windows Sysmon logs and other security events. The platform uses AI-powered analysis to detect suspicious patterns, extract Indicators of Compromise (IOCs), analyze network connections with threat intelligence feeds, and generate comprehensive threat reports.
