@@ -1,5 +1,4 @@
 .env
-sysmon*
 # Ignore Python cache files
 __pycache__/
 *.py[cod]
@@ -8,3 +7,5 @@ reports/
 collected_logs/
 output/
 reports/
+sysmon_collector.py
+*.log

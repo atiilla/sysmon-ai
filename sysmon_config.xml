@@ -1,0 +1,43 @@
+<Sysmon schemaversion="4.82">
+  <HashAlgorithms>sha256</HashAlgorithms>
+  <EventFiltering>
+    <ProcessCreate onmatch="exclude" />
+    <FileCreateTime onmatch="exclude" />
+    <NetworkConnect onmatch="exclude" />
+    <ProcessTerminate onmatch="exclude" />
+    <DriverLoad onmatch="exclude">
+      <Signature condition="contains">microsoft</Signature>
+      <Signature condition="contains">windows</Signature>
+    </DriverLoad>
+    <ImageLoad onmatch="exclude">
+      <ImageLoaded condition="contains">\Windows\System32\</ImageLoaded>
+    </ImageLoad>
+    <CreateRemoteThread onmatch="exclude" />
+    <RawAccessRead onmatch="exclude" />
+    <ProcessAccess onmatch="exclude">
+      <GrantedAccess condition="is">0x1410</GrantedAccess>
+      <GrantedAccess condition="is">0x1400</GrantedAccess>
+      <GrantedAccess condition="is">0x2000</GrantedAccess>
+      <GrantedAccess condition="is">0x1000</GrantedAccess>
+      <GrantedAccess condition="is">0x3008</GrantedAccess>
+    </ProcessAccess>
+    <FileCreate onmatch="exclude" />
+    <RegistryEvent onmatch="exclude">
+      <TargetObject condition="begin with">HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Wosc\Client\Persistent</TargetObject>
+      <TargetObject condition="contains">Disallowed</TargetObject>
+      <TargetObject condition="begin with">\REGISTRY\A\</TargetObject>
+      <TargetObject condition="end with">.pri</TargetObject>
+      <!-- Image condition="begin with">C:\Windows\</Image -->
+    </RegistryEvent>
+    <FileCreateStreamHash onmatch="include" />
+    <PipeEvent onmatch="exclude" />
+    <WmiEvent onmatch="exclude" />
+    <!-- DNSQuery onmatch="include" -->
+    <ClipboardChange onmatch="exclude" />
+    <ProcessTampering onmatch="exclude" />
+    <FileDeleteDetected onmatch="exclude" />
+    <!-- FileBlockExecutable onmatch="exclude" -->
+    <!-- FileBlockShredding onmatch="include" -->
+    <!-- FileExecutableDetected onmatch="include" -->
+  </EventFiltering>
+</Sysmon>
