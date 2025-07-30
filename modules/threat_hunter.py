@@ -402,12 +402,14 @@ class ThreatHuntingAnalyzer:
         
         # Look for lateral movement indicators
         for detection in analysis_results['threat_detections']:
-            if detection['threat_category'] == 'lateral_movement':
+            if detection.get('threat_category') == 'lateral_movement':
                 lateral_movement['detected_movement'].append(detection)
-                lateral_movement['movement_techniques'][detection['pattern_matched']] += 1
+                pattern = detection.get('pattern_matched', 'unknown_pattern')
+                lateral_movement['movement_techniques'][pattern] += 1
                 
                 # Extract host information from content
-                host_matches = re.findall(r'\\\\([\w\.-]+)', detection['matched_content'])
+                matched_content = detection.get('matched_content', '')
+                host_matches = re.findall(r'\\\\([\w\.-]+)', str(matched_content))
                 lateral_movement['compromised_hosts'].update(host_matches)
         
         # Convert set to list for JSON serialization
@@ -427,8 +429,9 @@ class ThreatHuntingAnalyzer:
         }
         
         for detection in analysis_results['threat_detections']:
-            if detection['threat_category'] == 'persistence_mechanisms':
-                persistence['persistence_methods'][detection['pattern_matched']] += 1
+            if detection.get('threat_category') == 'persistence_mechanisms':
+                pattern = detection.get('pattern_matched', 'unknown_pattern')
+                persistence['persistence_methods'][pattern] += 1
                 
                 # Categorize persistence type
                 matched_content = str(detection.get('matched_content', '')).lower()
@@ -463,7 +466,7 @@ class ThreatHuntingAnalyzer:
         
         # Look for data exfiltration patterns
         for detection in analysis_results['threat_detections']:
-            if detection['threat_category'] == 'data_exfiltration':
+            if detection.get('threat_category') == 'data_exfiltration':
                 data_flow['file_transfers'].append(detection)
         
         data_flow['network_connections'] = dict(data_flow['network_connections'])
@@ -540,7 +543,7 @@ class ThreatHuntingAnalyzer:
         # Count by threat category
         category_counts = Counter()
         for detection in analysis_results['threat_detections']:
-            category_counts[detection['threat_category']] += 1
+            category_counts[detection.get('threat_category', 'unknown')] += 1
         
         summary = {
             'overall_risk_level': 'LOW',
@@ -664,7 +667,7 @@ class ThreatHuntingAnalyzer:
         # Get top threats
         threat_categories = Counter()
         for detection in analysis_results['threat_detections']:
-            threat_categories[detection['threat_category']] += 1
+            threat_categories[detection.get('threat_category', 'unknown')] += 1
             summary_data['severity_breakdown'][detection['severity']] = summary_data['severity_breakdown'].get(detection['severity'], 0) + 1
         
         summary_data['top_threats'] = list(threat_categories.most_common(5))
@@ -691,7 +694,7 @@ class ThreatHuntingAnalyzer:
         try:
             response = self.groq_client.chat.completions.create(
                 messages=[{"role": "user", "content": prompt}],
-                model="mixtral-8x7b-32768",
+                model="llama3-8b-8192",
                 temperature=0.1,
                 max_tokens=1500
             )
@@ -699,6 +702,419 @@ class ThreatHuntingAnalyzer:
         except Exception as e:
             self.logger.error(f"AI analysis failed: {str(e)}")
             return f"AI analysis failed: {str(e)}"
+
+    def analyze_evtx(self, evtx_path, use_ai: bool = True) -> Dict[str, Any]:
+        """Analyze EVTX file for advanced threat hunting
+        
+        Args:
+            evtx_path: Path to EVTX file
+            use_ai: Whether to use AI-powered analysis
+            
+        Returns:
+            Analysis results dictionary
+        """
+        self.logger.info(f"Analyzing EVTX file for threat hunting: {evtx_path}")
+        
+        try:
+            # Import evtx parser library
+            try:
+                import Evtx.Evtx as evtx
+                import Evtx.Views as e_views
+            except ImportError:
+                self.logger.warning("python-evtx not installed, using fallback parser")
+                return self._analyze_fallback(evtx_path)
+            
+            results = {
+                'file_path': str(evtx_path),
+                'analysis_timestamp': datetime.now().isoformat(),
+                'analysis_metadata': {
+                    'timestamp': datetime.now().isoformat(),
+                    'analyst_version': '1.0',
+                    'analysis_type': 'evtx_threat_hunting',
+                    'analysis_duration': 0
+                },
+                'total_events': 0,
+                'suspicious_events': [],
+                'threat_detections': [],
+                'threat_categories': {},
+                'ai_analysis': None,
+                'detailed_analysis': True,
+                'event_summary': {},
+                'process_tree': [],
+                'network_connections': [],
+                'file_operations': [],
+                'ioc_extraction': {
+                    'ip_addresses': set(),
+                    'domains': set(),
+                    'urls': set(),
+                    'file_hashes': set(),
+                    'registry_keys': set(),
+                    'file_paths': set(),
+                    'email_addresses': set()
+                },
+                'attack_timeline': [],
+                'lateral_movement_analysis': {},
+                'persistence_analysis': {},
+                'data_flow_analysis': {},
+                'executive_summary': {},
+                'risk_assessment': {},
+                'hunting_queries': [],
+                'mitre_attack_mapping': defaultdict(list)
+            }
+            
+            # Process all events in the EVTX file
+            with evtx.Evtx(str(evtx_path)) as log:
+                for record in log.records():
+                    results['total_events'] += 1
+                    
+                    # Parse event XML
+                    event_xml = record.xml()
+                    event_id = self._extract_event_id(event_xml)
+                    
+                    # Track event summary
+                    if event_id not in results['event_summary']:
+                        results['event_summary'][event_id] = 0
+                    results['event_summary'][event_id] += 1
+                    
+                    # Extract detailed information
+                    self._extract_detailed_info(event_xml, event_id, results)
+                    
+                    # Extract IOCs from the event
+                    self._extract_iocs_from_event(event_xml, results['ioc_extraction'])
+                    
+                    # Detect suspicious activities based on threat patterns
+                    suspicious_indicators = self._detect_suspicious_activity(event_xml)
+                    
+                    if suspicious_indicators:
+                        timestamp = self._extract_timestamp(event_xml)
+                        # Get the first matching pattern for this event
+                        matched_pattern = "unknown_pattern"
+                        for category in suspicious_indicators:
+                            if category in self.threat_patterns:
+                                for pattern in self.threat_patterns[category]['patterns']:
+                                    if re.search(pattern, event_xml, re.IGNORECASE):
+                                        matched_pattern = pattern
+                                        break
+                                if matched_pattern != "unknown_pattern":
+                                    break
+                        
+                        event_data = {
+                            'event_id': event_id,
+                            'timestamp': timestamp,
+                            'indicators': suspicious_indicators,
+                            'raw_xml': event_xml[:1000],
+                            'process_info': self._extract_process_info(event_xml),
+                            'network_info': self._extract_network_info(event_xml),
+                            'file_info': self._extract_file_info(event_xml),
+                            'threat_category': suspicious_indicators[0] if suspicious_indicators else 'unknown',
+                            'severity': 'medium',  # Default severity
+                            'pattern_matched': matched_pattern,
+                            'matched_content': f"Detected in Event ID {event_id}",
+                            'log_source': 'evtx_file',
+                            'context': f"Event {event_id} analysis"
+                        }
+                        
+                        # Set severity based on threat pattern
+                        for category in suspicious_indicators:
+                            if category in self.threat_patterns:
+                                event_data['severity'] = self.threat_patterns[category]['severity']
+                                break
+                        
+                        # Add to suspicious events and threat detections
+                        results['suspicious_events'].append(event_data)
+                        results['threat_detections'].append(event_data)
+                        
+                        # Add to timeline
+                        results['attack_timeline'].append({
+                            'timestamp': timestamp,
+                            'event_id': event_id,
+                            'description': f"Detected {', '.join(suspicious_indicators)}",
+                            'severity': event_data['severity']
+                        })
+                        
+                        # Categorize threats
+                        for category in suspicious_indicators:
+                            if category not in results['threat_categories']:
+                                results['threat_categories'][category] = 0
+                            results['threat_categories'][category] += 1
+            
+            # Convert sets to lists for JSON serialization
+            for ioc_type in results['ioc_extraction']:
+                results['ioc_extraction'][ioc_type] = list(results['ioc_extraction'][ioc_type])
+            
+            # Perform advanced threat hunting analysis
+            results['lateral_movement_analysis'] = self._analyze_lateral_movement(results)
+            results['persistence_analysis'] = self._analyze_persistence(results)
+            results['data_flow_analysis'] = self._analyze_data_flow(results)
+            
+            # Generate hunting queries
+            results['hunting_queries'] = self._generate_hunting_queries(results)
+            
+            # Generate executive summary
+            results['executive_summary'] = self._generate_executive_summary(results)
+            
+            # Risk assessment
+            results['risk_assessment'] = self._calculate_risk_score(results)
+            
+            # Calculate analysis duration
+            end_time = datetime.now()
+            start_time_obj = datetime.fromisoformat(results['analysis_metadata']['timestamp'])
+            results['analysis_metadata']['analysis_duration'] = (end_time - start_time_obj).total_seconds()
+            
+            # Perform AI analysis if enabled and API key available
+            if use_ai and self.groq_client and results['suspicious_events']:
+                results['ai_analysis'] = self._generate_ai_insights(results)
+            
+            self.logger.info(f"Threat hunting analysis complete: {len(results['suspicious_events'])} suspicious events found")
+            return results
+            
+        except Exception as e:
+            self.logger.error(f"Error during threat hunting analysis: {str(e)}")
+            import traceback
+            self.logger.debug(traceback.format_exc())
+            raise
+            
+    def _analyze_fallback(self, evtx_path) -> Dict[str, Any]:
+        """Fallback analysis method when python-evtx is not available"""
+        self.logger.info("Using fallback analysis method for threat hunting")
+        
+        return {
+            'file_path': str(evtx_path),
+            'analysis_timestamp': datetime.now().isoformat(),
+            'analysis_metadata': {
+                'timestamp': datetime.now().isoformat(),
+                'analyst_version': '1.0',
+                'analysis_type': 'fallback_mode',
+                'analysis_duration': 0
+            },
+            'total_events': 0,
+            'suspicious_events': [],
+            'threat_detections': [],
+            'threat_categories': {},
+            'ioc_extraction': {
+                'ip_addresses': [],
+                'domains': [],
+                'urls': [],
+                'file_hashes': [],
+                'registry_keys': [],
+                'file_paths': [],
+                'email_addresses': []
+            },
+            'attack_timeline': [],
+            'lateral_movement_analysis': {
+                'detected_movement': [],
+                'compromised_hosts': [],
+                'movement_techniques': {}
+            },
+            'persistence_analysis': {
+                'persistence_methods': {},
+                'registry_modifications': [],
+                'scheduled_tasks': [],
+                'service_creations': []
+            },
+            'data_flow_analysis': {
+                'network_connections': {},
+                'file_transfers': [],
+                'dns_queries': [],
+                'suspicious_domains': []
+            },
+            'ai_analysis': "Advanced analysis requires python-evtx package. Install with: pip install python-evtx",
+            'status': 'fallback_mode',
+            'executive_summary': {
+                'overall_risk_level': 'UNKNOWN',
+                'total_threats_detected': 0,
+                'key_findings': ["Analysis failed - missing required dependencies"],
+                'immediate_actions_required': ["Install python-evtx package"]
+            },
+            'risk_assessment': {
+                'total_risk_score': 0,
+                'risk_level': 'UNKNOWN',
+                'confidence': 'LOW'
+            },
+            'hunting_queries': []
+        }
+        
+    def _extract_iocs_from_event(self, event_xml: str, ioc_collection: Dict[str, set]) -> None:
+        """Extract IOCs from event XML and add to collection
+        
+        Args:
+            event_xml: Raw XML event data
+            ioc_collection: Dictionary of IOC collections to update
+        """
+        try:
+            # Extract various types of IOCs
+            for ioc_type, pattern in self.ioc_patterns.items():
+                matches = re.findall(pattern, event_xml, re.IGNORECASE)
+                ioc_collection[ioc_type].update(matches)
+        except Exception:
+            pass
+    
+    def _extract_event_id(self, event_xml: str) -> str:
+        """Extract event ID from event XML"""
+        try:
+            root = ET.fromstring(event_xml)
+            system = root.find('./System')
+            event_id = system.find('./EventID')
+            return event_id.text if event_id is not None else "Unknown"
+        except Exception:
+            return "Unknown"
+    
+    def _extract_timestamp(self, event_xml: str) -> str:
+        """Extract timestamp from event XML"""
+        try:
+            root = ET.fromstring(event_xml)
+            system = root.find('./System')
+            time_created = system.find('./TimeCreated')
+            if time_created is not None and 'SystemTime' in time_created.attrib:
+                return time_created.attrib['SystemTime']
+            return "Unknown"
+        except Exception:
+            return "Unknown"
+    
+    def _extract_process_info(self, event_xml: str) -> Dict[str, str]:
+        """Extract process information from event XML"""
+        process_info = {
+            'process_id': None,
+            'process_name': None,
+            'command_line': None,
+            'parent_process_id': None,
+            'parent_process_name': None,
+            'user': None
+        }
+        
+        try:
+            root = ET.fromstring(event_xml)
+            data = root.find('./EventData')
+            
+            if data is not None:
+                # Extract all data items
+                for data_item in data.findall('./Data'):
+                    if 'Name' in data_item.attrib:
+                        name = data_item.attrib['Name']
+                        value = data_item.text if data_item.text else ""
+                        
+                        if name == 'ProcessId' or name == 'NewProcessId':
+                            process_info['process_id'] = value
+                        elif name == 'Image' or name == 'NewProcessName':
+                            process_info['process_name'] = value
+                        elif name == 'CommandLine':
+                            process_info['command_line'] = value
+                        elif name == 'ParentProcessId':
+                            process_info['parent_process_id'] = value
+                        elif name == 'ParentImage' or name == 'ParentProcessName':
+                            process_info['parent_process_name'] = value
+                        elif name == 'User':
+                            process_info['user'] = value
+        except Exception:
+            pass
+            
+        return process_info
+        
+    def _extract_network_info(self, event_xml: str) -> Dict[str, str]:
+        """Extract network information from event XML"""
+        network_info = {
+            'source_ip': None,
+            'destination_ip': None,
+            'source_port': None,
+            'destination_port': None,
+            'protocol': None
+        }
+        
+        try:
+            root = ET.fromstring(event_xml)
+            data = root.find('./EventData')
+            
+            if data is not None:
+                for data_item in data.findall('./Data'):
+                    if 'Name' in data_item.attrib:
+                        name = data_item.attrib['Name']
+                        value = data_item.text if data_item.text else ""
+                        
+                        if name == 'SourceIp':
+                            network_info['source_ip'] = value
+                        elif name == 'DestinationIp':
+                            network_info['destination_ip'] = value
+                        elif name == 'SourcePort':
+                            network_info['source_port'] = value
+                        elif name == 'DestinationPort':
+                            network_info['destination_port'] = value
+                        elif name == 'Protocol':
+                            network_info['protocol'] = value
+        except Exception:
+            pass
+            
+        return network_info
+        
+    def _extract_file_info(self, event_xml: str) -> Dict[str, str]:
+        """Extract file information from event XML"""
+        file_info = {
+            'path': None,
+            'hash': None,
+            'created': None,
+            'accessed': None,
+            'modified': None
+        }
+        
+        try:
+            root = ET.fromstring(event_xml)
+            data = root.find('./EventData')
+            
+            if data is not None:
+                for data_item in data.findall('./Data'):
+                    if 'Name' in data_item.attrib:
+                        name = data_item.attrib['Name']
+                        value = data_item.text if data_item.text else ""
+                        
+                        if name == 'TargetFilename':
+                            file_info['path'] = value
+                        elif name == 'Hashes':
+                            file_info['hash'] = value
+                        elif name == 'CreationUtcTime':
+                            file_info['created'] = value
+                        elif name == 'PreviousCreationUtcTime':
+                            file_info['accessed'] = value
+        except Exception:
+            pass
+            
+        return file_info
+    
+    def _extract_detailed_info(self, event_xml: str, event_id: str, results: Dict[str, Any]) -> None:
+        """Extract detailed information based on event type"""
+        try:
+            root = ET.fromstring(event_xml)
+            data = root.find('./EventData')
+            
+            # Process creation events (Event ID 1)
+            if event_id == "1":
+                process_info = self._extract_process_info(event_xml)
+                results['process_tree'].append(process_info)
+                
+            # Network connection events (Event ID 3)
+            elif event_id == "3":
+                network_info = self._extract_network_info(event_xml)
+                if network_info.get('destination_ip'):
+                    results['network_connections'].append(network_info)
+                    
+            # File creation events (Event IDs 11, 15)
+            elif event_id in ["11", "15"]:
+                file_info = self._extract_file_info(event_xml)
+                if file_info.get('path'):
+                    results['file_operations'].append(file_info)
+        except Exception:
+            pass
+    
+    def _detect_suspicious_activity(self, event_xml: str) -> List[str]:
+        """Detect suspicious patterns in event XML"""
+        detected_threats = []
+        
+        # Check for known threat patterns
+        for category, threat_info in self.threat_patterns.items():
+            for pattern in threat_info['patterns']:
+                if re.search(pattern, event_xml, re.IGNORECASE):
+                    detected_threats.append(category)
+                    break
+        
+        return detected_threats
 
     def generate_threat_report(self, analysis_results: Dict[str, Any], output_format: str = 'json') -> str:
         """Generate comprehensive threat hunting report
@@ -770,7 +1186,7 @@ class ThreatHuntingAnalyzer:
         
         for i, detection in enumerate(analysis_results['threat_detections'][:10], 1):
             report += f"""### Detection {i}
-- **Category:** {detection['threat_category']}
+- **Category:** {detection.get('threat_category', 'unknown')}
 - **Severity:** {detection['severity']}
 - **Pattern:** {detection['pattern_matched']}
 - **Source:** {detection['log_source']}
@@ -854,7 +1270,7 @@ class ThreatHuntingAnalyzer:
             html += f"""
     <div class="detection {severity_class}">
         <h3>Detection {i}</h3>
-        <p><strong>Category:</strong> {detection['threat_category']}</p>
+        <p><strong>Category:</strong> {detection.get('threat_category', 'unknown')}</p>
         <p><strong>Severity:</strong> {detection['severity']}</p>
         <p><strong>Pattern:</strong> {detection['pattern_matched']}</p>
         <p><strong>Source:</strong> {detection['log_source']}</p>

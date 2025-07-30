@@ -4,3 +4,7 @@ sysmon*
 __pycache__/
 *.py[cod]
 *.evtx
+reports/
+collected_logs/
+output/
+reports/

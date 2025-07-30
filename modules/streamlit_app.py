@@ -1,3 +1,10 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Sysmon AI Streamlit Web Interface
+Interactive web UI for Sysmon log analysis and threat hunting
+"""
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -9,9 +16,12 @@ import io
 import sys
 import os
 
-# Add the modules directory to the path
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules'))
-from groq_analyzer import SysmonAnalyzer
+# Add parent directory to path to ensure modules can be imported properly
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+
+# Import required modules
+from modules.config import config
+from modules.groq_analyzer import SysmonAnalyzer
 
 def generate_threat_hunter_report(results, format_type="display"):
     """Generate comprehensive threat hunter report"""
@@ -268,273 +278,17 @@ def extract_iocs_from_events(events):
     # Convert sets to lists for JSON serialization
     return {k: list(v) for k, v in iocs.items()}
 
-# Add the modules directory to the path
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules'))
-from groq_analyzer import SysmonAnalyzer
+# Import additional modules
+from modules.threat_hunter import ThreatHuntingAnalyzer 
+from modules.report_generator import ThreatReportGenerator
+from modules.log_collector import LogCollector
 
-st.set_page_config(
-    page_title="Sysmon AI",
-    page_icon="🛡️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# This section is intentionally left empty as it has been moved to the main() function
 
-st.title("🛡️ Sysmon AI - Event Log Analysis")
-st.markdown("AI-powered analysis tool for Windows Sysmon event logs")
 
-# Sidebar
-with st.sidebar:
-    st.header("Configuration")
-    uploaded_file = st.file_uploader("Upload EVTX File", type=['evtx'])
-    simple_analysis = st.checkbox("Simple Analysis", value=False, help="Uncheck for detailed analysis (default)")
-    groq_api_key = st.text_input("Groq API Key (Optional)", type="password", help="For AI-powered analysis")
-    
-    if st.button("Analyze", type="primary", disabled=not uploaded_file):
-        if uploaded_file:
-            # Save uploaded file temporarily
-            temp_path = Path("temp_upload.evtx")
-            with open(temp_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
-            
-            # Perform analysis
-            with st.spinner("Analyzing EVTX file..."):
-                analyzer = SysmonAnalyzer(groq_api_key=groq_api_key if groq_api_key else None)
-                detailed = not simple_analysis
-                results = analyzer.analyze_evtx(temp_path, detailed=detailed)
-                st.session_state.results = results
-            
-            # Clean up temp file
-            temp_path.unlink(missing_ok=True)
-            st.success("Analysis completed!")
-
-# Main content
-if 'results' in st.session_state:
-    results = st.session_state.results
-    
-    # Overview metrics
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Total Events", results['total_events'])
-    with col2:
-        st.metric("Suspicious Events", len(results['suspicious_events']))
-    with col3:
-        threat_types = len(results['threat_categories'])
-        st.metric("Threat Categories", threat_types)
-    with col4:
-        risk_score = min(100, len(results['suspicious_events']) * 5)
-        st.metric("Risk Score", f"{risk_score}/100")
-    
-    # Threat Categories Chart
-    if results['threat_categories']:
-        st.subheader("🎯 Threat Categories")
-        
-        threat_df = pd.DataFrame(
-            list(results['threat_categories'].items()),
-            columns=['Category', 'Count']
-        )
-        threat_df['Category'] = threat_df['Category'].str.replace('_', ' ').str.title()
-        
-        fig = px.bar(threat_df, x='Category', y='Count', 
-                    title="Detected Threats by Category",
-                    color='Count', color_continuous_scale='Reds')
-        st.plotly_chart(fig, use_container_width=True)
-    
-    # Timeline Analysis
-    if results['suspicious_events']:
-        st.subheader("📊 Timeline Analysis")
-        
-        # Create timeline data from events
-        timeline_data = []
-        for event in results['suspicious_events']:
-            timestamp = event.get('timestamp', 'Unknown')
-            if timestamp != 'Unknown':
-                timeline_data.append({
-                    'timestamp': timestamp,
-                    'event_id': event.get('event_id', 'Unknown'),
-                    'indicators': ', '.join(event.get('indicators', []))
-                })
-        
-        if timeline_data:
-            timeline_df = pd.DataFrame(timeline_data)
-            timeline_df['timestamp'] = pd.to_datetime(timeline_df['timestamp'], errors='coerce')
-            timeline_df = timeline_df.dropna(subset=['timestamp'])
-            
-            if not timeline_df.empty:
-                fig = px.scatter(timeline_df, x='timestamp', y='event_id',
-                               hover_data=['indicators'],
-                               title="Suspicious Events Timeline")
-                st.plotly_chart(fig, use_container_width=True)
-    
-    # AI Analysis
-    if results.get('ai_analysis'):
-        st.subheader("🤖 AI Analysis")
-        st.text_area("Analysis Results", results['ai_analysis'], height=200)
-    
-    # Threat Intelligence Section
-    st.subheader("🎯 Threat Intelligence Analysis")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("**MITRE ATT&CK Techniques Detected:**")
-        mitre_mapping = {
-            'process_injection': 'T1055 - Process Injection',
-            'powershell_obfuscation': 'T1059.001 - PowerShell',
-            'privilege_escalation': 'T1068 - Exploitation for Privilege Escalation',
-            'suspicious_network': 'T1071 - Application Layer Protocol',
-            'file_modification': 'T1070 - Indicator Removal on Host',
-            'registry_modification': 'T1112 - Modify Registry',
-            'service_creation': 'T1543.003 - Windows Service'
-        }
-        
-        detected_techniques = []
-        for category in results.get('threat_categories', {}).keys():
-            if category in mitre_mapping:
-                detected_techniques.append(mitre_mapping[category])
-        
-        if detected_techniques:
-            for technique in detected_techniques:
-                st.markdown(f"- {technique}")
-        else:
-            st.info("No specific MITRE ATT&CK techniques identified")
-    
-    with col2:
-        st.markdown("**Risk Assessment:**")
-        risk_score = min(100, len(results['suspicious_events']) * 5)
-        
-        if risk_score > 70:
-            st.error(f"🔴 HIGH RISK ({risk_score}/100)")
-            st.markdown("**Immediate action required**")
-        elif risk_score > 30:
-            st.warning(f"🟡 MEDIUM RISK ({risk_score}/100)")
-            st.markdown("**Enhanced monitoring recommended**")
-        else:
-            st.success(f"🟢 LOW RISK ({risk_score}/100)")
-            st.markdown("**Routine monitoring sufficient**")
-        
-        # IOCs Summary
-        iocs = extract_iocs_from_events(results.get('suspicious_events', []))
-        st.markdown("**Indicators of Compromise:**")
-        st.metric("Suspicious IPs", len(iocs['ip_addresses']))
-        st.metric("Suspicious Files", len(iocs['file_paths']))
-        st.metric("Suspicious Processes", len(iocs['process_names']))
-    
-    # Detailed Events Table
-    if results['suspicious_events']:
-        st.subheader("🔍 Suspicious Events Details")
-        
-        events_data = []
-        for i, event in enumerate(results['suspicious_events'], 1):
-            events_data.append({
-                '#': i,
-                'Event ID': event.get('event_id', 'Unknown'),
-                'Timestamp': event.get('timestamp', 'Unknown'),
-                'Threat Indicators': ', '.join(event.get('indicators', [])),
-                'Raw Data Preview': event.get('raw_xml', '')[:100] + '...' if event.get('raw_xml') else ''
-            })
-        
-        events_df = pd.DataFrame(events_data)
-        st.dataframe(events_df, use_container_width=True)
-        
-        # Show detailed IOCs if available
-        if results['suspicious_events']:
-            st.subheader("🚨 Indicators of Compromise (IOCs)")
-            
-            iocs = extract_iocs_from_events(results['suspicious_events'])
-            
-            ioc_tabs = st.tabs(["IP Addresses", "File Paths", "Process Names", "Network IOCs"])
-            
-            with ioc_tabs[0]:
-                if iocs['ip_addresses']:
-                    ip_df = pd.DataFrame(iocs['ip_addresses'], columns=['IP Address'])
-                    ip_df['Type'] = 'Suspicious Network Connection'
-                    ip_df['Risk Level'] = 'Medium'
-                    st.dataframe(ip_df, use_container_width=True)
-                else:
-                    st.info("No suspicious IP addresses detected")
-            
-            with ioc_tabs[1]:
-                if iocs['file_paths']:
-                    file_df = pd.DataFrame(iocs['file_paths'], columns=['File Path'])
-                    file_df['Type'] = 'Suspicious File Activity'
-                    file_df['Risk Level'] = 'High'
-                    st.dataframe(file_df, use_container_width=True)
-                else:
-                    st.info("No suspicious file paths detected")
-            
-            with ioc_tabs[2]:
-                if iocs['process_names']:
-                    proc_df = pd.DataFrame(iocs['process_names'], columns=['Process Name'])
-                    proc_df['Type'] = 'Suspicious Process Execution'
-                    proc_df['Risk Level'] = 'High'
-                    st.dataframe(proc_df, use_container_width=True)
-                else:
-                    st.info("No suspicious processes detected")
-            
-            with ioc_tabs[3]:
-                network_summary = []
-                for event in results['suspicious_events']:
-                    if 'network_info' in event and event['network_info']:
-                        network_summary.append({
-                            'Source IP': event['network_info'].get('source_ip', 'Unknown'),
-                            'Destination IP': event['network_info'].get('destination_ip', 'Unknown'),
-                            'Port': event['network_info'].get('destination_port', 'Unknown'),
-                            'Protocol': event['network_info'].get('protocol', 'Unknown'),
-                            'Timestamp': event.get('timestamp', 'Unknown')
-                        })
-                
-                if network_summary:
-                    network_df = pd.DataFrame(network_summary)
-                    st.dataframe(network_df, use_container_width=True)
-                else:
-                    st.info("No network IOCs detected")
-    
-    # Comprehensive Threat Hunter Report
-    st.subheader("🎯 Comprehensive Threat Hunter Report")
-    
-    with st.expander("📋 Full Threat Hunting Analysis", expanded=False):
-        # Generate comprehensive threat hunter report
-        report_content = generate_threat_hunter_report(results)
-        st.markdown(report_content)
-    
-    # Export Options
-    st.subheader("📥 Export Results")
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        if st.button("Download JSON Report"):
-            json_str = json.dumps(results, indent=2)
-            st.download_button(
-                label="Download JSON",
-                data=json_str,
-                file_name="sysmon_analysis.json",
-                mime="application/json"
-            )
-    
-    with col2:
-        if st.button("Download Threat Hunter Report"):
-            # Generate comprehensive threat hunter report
-            threat_report = generate_threat_hunter_report(results, format_type="download")
-            st.download_button(
-                label="Download Threat Report",
-                data=threat_report,
-                file_name=f"threat_hunting_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
-                mime="text/markdown"
-            )
-    
-    with col3:
-        if st.button("Download Executive Summary"):
-            # Generate executive summary
-            exec_summary = generate_executive_summary(results)
-            st.download_button(
-                label="Download Executive Summary",
-                data=exec_summary,
-                file_name=f"executive_summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-                mime="text/plain"
-            )
-
-else:
-    st.info("👆 Upload an EVTX file in the sidebar to begin analysis")
+def show_welcome_screen():
+    """Display welcome screen when no analysis has been performed"""
+    st.info("👆 Use the sidebar options to start your analysis")
     
     # Show sample analysis capabilities
     st.subheader("🔧 Analysis Capabilities")
@@ -566,3 +320,461 @@ else:
         - SeTakeOwnershipPrivilege
         - SeImpersonatePrivilege
         """)
+
+
+def show_evtx_analysis_sidebar():
+    """Show EVTX analysis sidebar"""
+    st.subheader("📄 EVTX File Analysis")
+    with st.form("evtx_analysis_form"):
+        uploaded_file = st.file_uploader("Upload EVTX File", type=['evtx'], key="evtx_file_upload")
+        simple_analysis = st.checkbox("Simple Analysis", value=False, help="Uncheck for detailed analysis (default)", key="evtx_simple")
+        use_ai = st.checkbox("Use AI Analysis", value=True, help="Enable AI-powered threat analysis", key="evtx_ai")
+        
+        if use_ai:
+            groq_api_key = st.text_input("Groq API Key", type="password", 
+                                        value=config.GROQ_API_KEY if hasattr(config, 'GROQ_API_KEY') else "", 
+                                        help="For AI-powered analysis", key="evtx_groq_key")
+        else:
+            groq_api_key = None
+        
+        submit_evtx = st.form_submit_button("Analyze EVTX", type="primary", disabled=not uploaded_file)
+        
+        if submit_evtx and uploaded_file:
+            handle_evtx_analysis(uploaded_file, simple_analysis, groq_api_key)
+
+def show_threat_intel_sidebar():
+    """Show threat intelligence sidebar"""
+    st.subheader("🔍 Threat Intelligence")
+    
+    # API Configuration
+    st.write("**API Configuration**")
+    vt_key = st.text_input("VirusTotal API Key", type="password", 
+                          value=config.VIRUSTOTAL_API_KEY if hasattr(config, 'VIRUSTOTAL_API_KEY') else "",
+                          help="For domain/IP/hash analysis")
+    abuse_key = st.text_input("AbuseIPDB API Key", type="password",
+                             value=config.ABUSEIPDB_API_KEY if hasattr(config, 'ABUSEIPDB_API_KEY') else "",
+                             help="For IP reputation analysis")
+    
+    st.write("**Analysis Options**")
+    intel_mode = st.selectbox(
+        "Analysis Type",
+        ["Extract IPs from Sysmon", "Upload IP List", "Single Indicator", "Generate PDF Report"],
+        help="Choose threat intelligence analysis type"
+    )
+    
+    if intel_mode == "Upload IP List":
+        uploaded_ip_file = st.file_uploader("Upload IP List", type=['txt'], 
+                                           help="Text file with one IP per line")
+        if st.button("Analyze IP List", disabled=not uploaded_ip_file or (not vt_key and not abuse_key)):
+            handle_ip_list_analysis(uploaded_ip_file, vt_key, abuse_key)
+    
+    elif intel_mode == "Single Indicator":
+        indicator_type = st.selectbox("Indicator Type", ["IP Address", "Domain", "File Hash"])
+        indicator_value = st.text_input(f"Enter {indicator_type}")
+        if st.button(f"Analyze {indicator_type}", disabled=not indicator_value or (not vt_key and not abuse_key)):
+            handle_single_indicator_analysis(indicator_type, indicator_value, vt_key, abuse_key)
+    
+    elif intel_mode == "Extract IPs from Sysmon":
+        if st.button("Extract & Analyze Sysmon IPs", disabled=(not vt_key and not abuse_key)):
+            handle_sysmon_ip_extraction(vt_key, abuse_key)
+    
+    elif intel_mode == "Generate PDF Report":
+        if st.button("Generate PDF Report"):
+            handle_pdf_generation()
+
+def show_log_collection_sidebar():
+    """Show log collection sidebar"""
+    st.subheader("📋 Log Collection")
+    
+    with st.form("log_collection_form"):
+        time_range = st.slider("Time Range (hours)", min_value=1, max_value=168, value=24)
+        sysmon_only = st.checkbox("Sysmon Logs Only", value=True, help="Collect only Sysmon logs for faster processing")
+        analyze_ips = st.checkbox("Analyze IPs", value=True, help="Extract and analyze IPs with threat intelligence")
+        
+        if analyze_ips:
+            vt_key_collection = st.text_input("VirusTotal API Key", type="password",
+                                             value=config.VIRUSTOTAL_API_KEY if hasattr(config, 'VIRUSTOTAL_API_KEY') else "")
+            abuse_key_collection = st.text_input("AbuseIPDB API Key", type="password",
+                                                value=config.ABUSEIPDB_API_KEY if hasattr(config, 'ABUSEIPDB_API_KEY') else "")
+        
+        submit_collection = st.form_submit_button("Start Collection", type="primary")
+        
+        if submit_collection:
+            api_keys = {}
+            if analyze_ips:
+                api_keys['vt_key'] = vt_key_collection
+                api_keys['abuse_key'] = abuse_key_collection
+            handle_log_collection(time_range, sysmon_only, analyze_ips, api_keys)
+
+def handle_evtx_analysis(uploaded_file, simple_analysis, groq_api_key):
+    """Handle EVTX file analysis"""
+    import tempfile
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.evtx')
+    temp_file.write(uploaded_file.getbuffer())
+    temp_file.close()
+    
+    with st.spinner("Analyzing EVTX file..."):
+        analyzer = SysmonAnalyzer(groq_api_key=groq_api_key if groq_api_key else None)
+        detailed = not simple_analysis
+        results = analyzer.analyze_evtx(temp_file.name, detailed=detailed)
+        st.session_state.results = results
+        st.session_state.analysis_type = "evtx"
+    
+    try:
+        os.unlink(temp_file.name)
+    except:
+        pass
+        
+    st.success("Analysis completed!")
+
+def handle_ip_list_analysis(uploaded_file, vt_key, abuse_key):
+    """Handle IP list analysis"""
+    from modules.threat_intelligence import ThreatIntelligenceCollector
+    
+    content = uploaded_file.read().decode('utf-8')
+    ips = [line.strip() for line in content.split('\n') if line.strip()]
+    
+    if not ips:
+        st.error("No valid IPs found in file")
+        return
+    
+    with st.spinner(f"Analyzing {len(ips)} IPs..."):
+        threat_intel = ThreatIntelligenceCollector(
+            virustotal_api_key=vt_key if vt_key else None,
+            abuseipdb_api_key=abuse_key if abuse_key else None,
+            output_dir=str(config.OUTPUT_DIR)
+        )
+        
+        results = threat_intel.analyze_ip_list(ips)
+        st.session_state.threat_intel_results = results
+        st.session_state.analysis_type = "threat_intel"
+        
+        pdf_report = threat_intel.generate_pdf_report()
+        if pdf_report:
+            st.session_state.pdf_report_path = str(pdf_report)
+    
+    st.success(f"Analysis completed! Found {len(results.get('malicious_ips', []))} malicious and {len(results.get('suspicious_ips', []))} suspicious IPs")
+
+def handle_single_indicator_analysis(indicator_type, value, vt_key, abuse_key):
+    """Handle single indicator analysis"""
+    from modules.threat_intelligence import ThreatIntelligenceCollector
+    
+    with st.spinner(f"Analyzing {indicator_type.lower()}: {value}"):
+        threat_intel = ThreatIntelligenceCollector(
+            virustotal_api_key=vt_key if vt_key else None,
+            abuseipdb_api_key=abuse_key if abuse_key else None,
+            output_dir=str(config.OUTPUT_DIR)
+        )
+        
+        vt_result = threat_intel.query_virustotal(value)
+        abuse_result = None
+        
+        if indicator_type == "IP Address" and threat_intel.is_valid_ip(value):
+            abuse_result = threat_intel.query_abuseipdb(value)
+        
+        threat_intel.save_to_csv(value, vt_result, abuse_result)
+        
+        st.session_state.single_indicator_results = {
+            'indicator': value,
+            'type': indicator_type,
+            'vt_result': vt_result,
+            'abuse_result': abuse_result
+        }
+        st.session_state.analysis_type = "single_indicator"
+    
+    st.success(f"{indicator_type} analysis completed!")
+
+def handle_sysmon_ip_extraction(vt_key, abuse_key):
+    """Handle Sysmon IP extraction and analysis"""
+    from modules.threat_intelligence import ThreatIntelligenceCollector
+    
+    with st.spinner("Extracting IPs from Sysmon logs..."):
+        threat_intel = ThreatIntelligenceCollector(
+            virustotal_api_key=vt_key if vt_key else None,
+            abuseipdb_api_key=abuse_key if abuse_key else None,
+            output_dir=str(config.OUTPUT_DIR)
+        )
+        
+        ips_list, ip_file_path = threat_intel.extract_ips_from_sysmon_logs()
+        
+        if ips_list:
+            st.write(f"Extracted {len(ips_list)} IPs from Sysmon logs")
+            
+            with st.spinner(f"Analyzing {len(ips_list)} IPs..."):
+                results = threat_intel.analyze_ip_list(ips_list)
+                st.session_state.threat_intel_results = results
+                st.session_state.analysis_type = "threat_intel"
+                
+                pdf_report = threat_intel.generate_pdf_report()
+                if pdf_report:
+                    st.session_state.pdf_report_path = str(pdf_report)
+            
+            st.success(f"Analysis completed! Found {len(results.get('malicious_ips', []))} malicious and {len(results.get('suspicious_ips', []))} suspicious IPs")
+        else:
+            st.warning("No IPs extracted from Sysmon logs")
+
+def handle_pdf_generation():
+    """Handle PDF report generation"""
+    from modules.threat_intelligence import ThreatIntelligenceCollector
+    
+    threat_intel = ThreatIntelligenceCollector(output_dir=str(config.OUTPUT_DIR))
+    
+    with st.spinner("Generating PDF report..."):
+        pdf_report = threat_intel.generate_pdf_report()
+        
+        if pdf_report:
+            st.session_state.pdf_report_path = str(pdf_report)
+            st.success(f"PDF report generated: {pdf_report.name}")
+        else:
+            st.error("Failed to generate PDF report. Make sure you have analysis results in CSV format.")
+
+def handle_log_collection(time_range, sysmon_only, analyze_ips, api_keys):
+    """Handle log collection"""
+    from modules.log_collector import LogCollector
+    
+    with st.spinner(f"Collecting logs for the past {time_range} hours..."):
+        log_collector = LogCollector()
+        
+        if sysmon_only and analyze_ips and (api_keys.get('vt_key') or api_keys.get('abuse_key')):
+            results = log_collector.collect_sysmon_with_ip_analysis(
+                time_range_hours=time_range,
+                analyze_ips=True
+            )
+        elif sysmon_only:
+            # Collect only Sysmon logs
+            logs = log_collector.collect_sysmon_logs(time_range=time_range)
+            results = {"sysmon_logs": logs}
+        else:
+            # Collect all logs
+            results = log_collector.collect_all_logs(time_range_hours=time_range)
+        
+        if results:
+            st.session_state.collection_results = results
+            st.session_state.analysis_type = "log_collection"
+            st.success("Log collection completed!")
+        else:
+            st.error("Log collection failed or no logs found")
+
+def display_main_content():
+    """Display main content based on analysis type"""
+    if 'results' in st.session_state and st.session_state.get('analysis_type') == 'evtx':
+        display_evtx_results(st.session_state.results)
+    elif 'threat_intel_results' in st.session_state and st.session_state.get('analysis_type') == 'threat_intel':
+        display_threat_intel_results(st.session_state.threat_intel_results)
+    elif 'single_indicator_results' in st.session_state and st.session_state.get('analysis_type') == 'single_indicator':
+        display_single_indicator_results(st.session_state.single_indicator_results)
+    elif 'collection_results' in st.session_state and st.session_state.get('analysis_type') == 'log_collection':
+        display_collection_results(st.session_state.collection_results)
+    else:
+        display_welcome_screen()
+
+def display_threat_intel_results(results):
+    """Display threat intelligence analysis results"""
+    st.header("🔍 Threat Intelligence Analysis Results")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Total IPs Analyzed", results.get('total_ips', 0))
+    
+    with col2:
+        st.metric("Malicious IPs", len(results.get('malicious_ips', [])))
+    
+    with col3:
+        st.metric("Suspicious IPs", len(results.get('suspicious_ips', [])))
+    
+    with col4:
+        st.metric("Total Queries", results.get('vt_queries', 0) + results.get('abuse_queries', 0))
+    
+    if results.get('malicious_ips'):
+        st.subheader("🚨 Malicious IPs Found")
+        malicious_df = pd.DataFrame(results['malicious_ips'])
+        st.dataframe(malicious_df, use_container_width=True)
+    
+    if results.get('suspicious_ips'):
+        st.subheader("⚠️ Suspicious IPs Found")
+        suspicious_df = pd.DataFrame(results['suspicious_ips'])
+        st.dataframe(suspicious_df, use_container_width=True)
+    
+    if results.get('errors'):
+        st.subheader("❌ Errors Encountered")
+        for error in results['errors']:
+            st.error(error)
+    
+    if 'pdf_report_path' in st.session_state:
+        with open(st.session_state.pdf_report_path, 'rb') as pdf_file:
+            st.download_button(
+                label="📄 Download PDF Report",
+                data=pdf_file.read(),
+                file_name=Path(st.session_state.pdf_report_path).name,
+                mime="application/pdf"
+            )
+
+def display_single_indicator_results(results):
+    """Display single indicator analysis results"""
+    st.header(f"🔍 {results['type']} Analysis: {results['indicator']}")
+    
+    if results.get('vt_result'):
+        st.subheader("📊 VirusTotal Results")
+        vt_data = results['vt_result']
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Malicious", vt_data.get('malicious', 0))
+        with col2:
+            st.metric("Suspicious", vt_data.get('suspicious', 0))
+        with col3:
+            st.metric("Harmless", vt_data.get('harmless', 0))
+        with col4:
+            st.metric("Undetected", vt_data.get('undetected', 0))
+    
+    if results.get('abuse_result'):
+        st.subheader("📊 AbuseIPDB Results")
+        abuse_data = results['abuse_result']
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Abuse Score", f"{abuse_data.get('abuseConfidenceScore', 0)}%")
+        with col2:
+            st.metric("Total Reports", abuse_data.get('totalReports', 0))
+        with col3:
+            st.metric("Last Reported", abuse_data.get('lastReportedAt', 'Never'))
+
+def display_collection_results(results):
+    """Display log collection results"""
+    st.header("📋 Log Collection Results")
+    
+    summary = results.get('summary', {})
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Successful Collections", summary.get('successful_collections', 0))
+    with col2:
+        st.metric("Total Events", summary.get('total_events', 0))
+    with col3:
+        st.metric("Failed Collections", summary.get('failed_collections', 0))
+    
+    if 'ip_analysis' in results:
+        ip_results = results['ip_analysis']
+        if ip_results.get('status') != 'error':
+            st.subheader("🔍 IP Analysis Results")
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("IPs Analyzed", ip_results.get('total_ips_analyzed', 0))
+            with col2:
+                st.metric("Malicious IPs", ip_results.get('malicious_ips_found', 0))
+            with col3:
+                st.metric("Suspicious IPs", ip_results.get('suspicious_ips_found', 0))
+            
+            if 'analysis_results' in ip_results:
+                analysis_data = ip_results['analysis_results']
+                
+                if analysis_data.get('malicious_ips'):
+                    st.subheader("🚨 Malicious IPs Found")
+                    malicious_df = pd.DataFrame(analysis_data['malicious_ips'])
+                    st.dataframe(malicious_df, use_container_width=True)
+                
+                if analysis_data.get('suspicious_ips'):
+                    st.subheader("⚠️ Suspicious IPs Found")
+                    suspicious_df = pd.DataFrame(analysis_data['suspicious_ips'])
+                    st.dataframe(suspicious_df, use_container_width=True)
+
+def display_welcome_screen():
+    """Display welcome screen with instructions"""
+    st.header("Welcome to Sysmon AI")
+    st.write("Select an analysis mode from the sidebar to get started.")
+    
+    st.subheader("Available Features:")
+    st.write("🔍 **Threat Intelligence** - Analyze IPs, domains, and file hashes with VirusTotal and AbuseIPDB")
+    st.write("📄 **EVTX Analysis** - Deep analysis of Windows event logs with AI-powered insights")
+    st.write("📋 **Log Collection** - Collect and analyze system logs with automated threat intelligence")
+
+def display_evtx_results(results):
+    """Display EVTX analysis results"""
+    # Overview metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Total Events", results.get('total_events', 0))
+    with col2:
+        st.metric("Suspicious Events", len(results.get('suspicious_events', [])))
+    with col3:
+        threat_types = len(results.get('threat_categories', {}))
+        st.metric("Threat Categories", threat_types)
+    with col4:
+        risk_score = min(100, len(results.get('suspicious_events', [])) * 5)
+        st.metric("Risk Score", f"{risk_score}/100")
+    
+    # Threat Categories Chart
+    if results.get('threat_categories'):
+        st.subheader("🎯 Threat Categories")
+        
+        threat_df = pd.DataFrame(
+            list(results['threat_categories'].items()),
+            columns=['Category', 'Count']
+        )
+        threat_df['Category'] = threat_df['Category'].str.replace('_', ' ').str.title()
+        
+        fig = px.bar(threat_df, x='Category', y='Count', 
+                    title="Detected Threats by Category",
+                    color='Count', color_continuous_scale='Reds')
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # Display suspicious events if available
+    if results.get('suspicious_events'):
+        st.subheader("🔍 Suspicious Events")
+        
+        events_data = []
+        for i, event in enumerate(results['suspicious_events'], 1):
+            events_data.append({
+                '#': i,
+                'Event ID': event.get('event_id', 'Unknown'),
+                'Timestamp': event.get('timestamp', 'Unknown'),
+                'Indicators': ', '.join(event.get('indicators', [])),
+                'Category': event.get('category', 'Unknown')
+            })
+        
+        if events_data:
+            events_df = pd.DataFrame(events_data)
+            st.dataframe(events_df, use_container_width=True)
+    
+    # AI Analysis
+    if results.get('ai_analysis'):
+        st.subheader("🤖 AI Analysis")
+        st.text_area("Analysis Results", results['ai_analysis'], height=200)
+
+def main():
+    """Main entry point for Streamlit application"""
+    st.set_page_config(
+        page_title="Sysmon AI",
+        page_icon="🛡️",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+    
+    st.title("🛡️ Sysmon AI - Advanced Threat Hunting Platform")
+    st.markdown("AI-powered analysis tool with threat intelligence integration and comprehensive log analysis")
+    
+    # Setup sidebar navigation and options
+    with st.sidebar:
+        st.header("🔧 Analysis Mode")
+        analysis_mode = st.selectbox(
+            "Choose Analysis Mode",
+            ["EVTX Analysis", "Threat Intelligence", "Log Collection"],
+            help="Select the type of analysis to perform"
+        )
+        
+        if analysis_mode == "EVTX Analysis":
+            show_evtx_analysis_sidebar()
+        elif analysis_mode == "Threat Intelligence":
+            show_threat_intel_sidebar()
+        elif analysis_mode == "Log Collection":
+            show_log_collection_sidebar()
+    
+    # Display main content
+    display_main_content()
+
+
+if __name__ == "__main__":
+    main()

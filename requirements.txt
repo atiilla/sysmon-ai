@@ -18,6 +18,9 @@ seaborn
 wordcloud
 watchdog
 schedule
+colorama
+fpdf
+ipaddress
 # Windows-specific packages (install only on Windows)
 pywin32; sys_platform == "win32"
 # Additional packages for enhanced threat hunting
